@@ -1,7 +1,6 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -9,62 +8,126 @@ const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-//Cadastro
+// Funções de validação
+function validarEmail(email) {
+  if (!email) return false; // Verifica se é null, undefined ou uma string vazia
+  const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return emailPattern.test(email);
+}
+
+function validarNome(name) {
+  if (!name) return false; // Verifica se é null, undefined ou uma string vazia
+  // Permite letras, números, espaços e alguns caracteres especiais
+  const namePattern = /^[a-zA-ZÀ-ÖØ-ÿ0-9 .'-]+$/i;
+  return namePattern.test(name.trim());
+}
+
+function validarSenha(password) {
+  if (!password) return false; // Verifica se é null, undefined ou uma string vazia
+  // Pelo menos uma letra minúscula, uma maiúscula, um número, um caractere especial e no mínimo 12 caracteres
+  const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&^#()_+])[A-Za-z\d@$!%*?&^#()_+]{12,}$/;
+  return passwordPattern.test(password);
+}
+
+// Função para cadastrar usuário
+async function cadastrarUsuario(name, email, password) {
+  try {
+    console.log("Dados recebidos para cadastro:", { name, email });
+
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(password, salt);
+
+    return await prisma.user.create({
+      data: {
+        email,
+        name,
+        password: hashPassword,
+      },
+    });
+  } catch (err) {
+    console.error("Erro no cadastro:", err);
+    throw new Error("Erro ao cadastrar usuário");
+  }
+}
+
+// Rota de cadastro
 router.post("/cadastro", async (req, res) => {
-  if (req.body.email && req.body.name && req.body.password) {
-    try {
-      const user = req.body;
+  const { name, email, password } = req.body;
 
-      const salt = await bcrypt.genSalt(10);
-      const hashPassword = await bcrypt.hash(user.password, salt);
+  // Validar dados
+  if (!validarNome(name)) {
+    return res.status(400).json({ message: "Nome inválido." });
+  }
+  if (!validarEmail(email)) {
+    return res.status(400).json({ message: "E-mail inválido." });
+  }
+  if (!validarSenha(password)) {
+    return res.status(400).json({ message: "Senha inválida." });
+  }
 
-      const userDB = await prisma.user.create({
-        data: {
-          email: user.email,
-          name: user.name,
-          password: hashPassword,
-        },
-      });
+  // Verificar se o e-mail já está registrado
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
 
-      res.status(201).json(userDB);
-    } catch (err) {
-      res.status(500).json({ message: "Erro no servidor, tente novamente!" });
+    if (existingUser) {
+      return res.status(400).json({ message: "O e-mail já está em uso!" });
     }
-  } else {
-    res
-      .status(400)
-      .json({ message: "Preencha todos os campos adequadamente!" });
+
+    const newUser = await cadastrarUsuario(name, email, password);
+    res.status(201).json(newUser);
+  } catch (error) {
+    console.error("Erro ao verificar e-mail ou cadastrar usuário:", error);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
 });
 
-//Login
+// Rota de login
 router.post("/login", async (req, res) => {
   try {
-    const userInfo = req.body;
+    const { email, password } = req.body;
 
-    //Busca o usuário no banco
     const user = await prisma.user.findUnique({
-      where: { email: userInfo.email },
+      where: { email },
     });
 
-    //Verifica se o usuário existe
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado!" });
     }
 
-    //Compara se a hash da senha digitada é igual à do banco
-    const isMatch = await bcrypt.compare(userInfo.password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(400).json({ message: "Senha inválida!" });
     }
 
-    //Gerar o token JWT
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "10m" });
 
-    res.status(200).json(token);
+    res.status(200).json({ token });
   } catch (err) {
+    console.error("Erro no login:", err);
     res.status(500).json({ message: "Erro no servidor, tente novamente!" });
+  }
+});
+
+// Verificar se o e-mail já foi utilizado
+router.post("/api/isUserAlreadyRegistered", async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (user) {
+      return res.status(400).json({ message: "O e-mail já está em uso!" });
+    }
+
+    res.status(200).json({ message: "O e-mail está disponível" });
+  } catch (error) {
+    console.error("Erro ao verificar e-mail:", error);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
 });
 
