@@ -26,7 +26,6 @@ function Cadastro() {
   // Função de validação de senha
   function isPasswordValid(password) {
     if (!password) return false;
-    // Pelo menos uma letra minúscula, uma maiúscula, um número, um caractere especial e no mínimo 12 caracteres
     const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&^#()_+])[A-Za-z\d@$!%*?&^#()_+]{12,}$/;
     return passwordPattern.test(password);
   }
@@ -45,8 +44,12 @@ function Cadastro() {
         return false;
       }
     } catch (error) {
-      if (error.response && error.response.status === 400) {
-        setMessageError("E-mail já está em uso");
+      if (error.response) {
+        if (error.response.status === 400) {
+          setMessageError("E-mail já está em uso");
+        } else {
+          setMessageError("Erro na verificação do e-mail. Tente novamente.");
+        }
       } else {
         setMessageError("Erro na verificação do e-mail. Tente novamente.");
       }
@@ -94,10 +97,11 @@ function Cadastro() {
         return;
       }
 
-      await api.post("/cadastro", { name, email, password });
+      await api.post("/api/cadastro", { name, email, password });
       setMessageSuccess("Usuário cadastrado com sucesso!");
       setMessageError("");
     } catch (err) {
+      console.error("Erro no cadastro:", err); // Adicionando log para depuração
       setMessageError("Erro no cadastro. Tente novamente.");
       setMessageSuccess("");
     }
