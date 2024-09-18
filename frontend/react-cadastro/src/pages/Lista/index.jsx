@@ -18,7 +18,11 @@ function ListarUsuarios() {
       setAllUsers(users);
     }
 
-    loadUsers();
+    try {
+      loadUsers();
+    } catch (err) {
+      console.log("Erro ao carregar os usuários");
+    }
   }, []);
 
   return (

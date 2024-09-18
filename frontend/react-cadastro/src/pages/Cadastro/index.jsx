@@ -30,24 +30,31 @@ function Cadastro() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <input
+          name="name"
           ref={nameRef}
           placeholder="Nome"
           type="text"
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
         />
         <input
+          name="email"
           ref={emailRef}
           placeholder="E-mail"
           type="email"
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
         />
         <input
+          name="password"
           ref={passwordRef}
           placeholder="Senha"
           type="password"
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none"
         />
-        <button className="w-full bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-400 ">
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="w-full bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-400 "
+        >
           Cadastrar-se
         </button>
       </form>
